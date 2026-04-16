@@ -69,10 +69,21 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="hidden md:flex flex-col w-60 min-h-screen bg-surface border-r border-border px-4 py-6 fixed top-0 left-0">
+    <aside
+      className="hidden md:flex flex-col w-60 min-h-screen px-4 py-6 fixed top-0 left-0 z-40"
+      style={{
+        background: 'rgba(5,5,15,0.82)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderRight: '1px solid rgba(26,26,58,0.7)',
+      }}
+    >
       {/* Logo */}
-      <div className="flex items-center gap-2 px-2 mb-8">
-        <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
+      <div className="flex items-center gap-2.5 px-2 mb-8">
+        <div
+          className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 animate-logo-pulse"
+          style={{ background: 'linear-gradient(135deg,#2563ff,#00d4ff)' }}
+        >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
             <rect x="3" y="4" width="18" height="18" rx="2" />
             <line x1="16" y1="2" x2="16" y2="6" />
@@ -80,7 +91,7 @@ export function Sidebar() {
             <line x1="3" y1="10" x2="21" y2="10" />
           </svg>
         </div>
-        <span className="font-heading font-bold text-lg text-white">BookEasy</span>
+        <span className="font-heading font-bold text-lg text-gradient">BookEasy</span>
       </div>
 
       {/* Nav */}
@@ -90,10 +101,10 @@ export function Sidebar() {
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
+              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                 isActive
-                  ? 'bg-accent/15 text-accent'
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  ? 'nav-active'
+                  : 'text-gray-500 hover:text-gray-200 hover:bg-white/4'
               }`
             }
           >
@@ -103,11 +114,26 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* User */}
-      <div className="mt-auto border-t border-border pt-4">
+      {/* User section */}
+      <div className="mt-auto pt-4" style={{ borderTop: '1px solid rgba(26,26,58,0.8)' }}>
         <div className="flex items-center gap-3 px-2 mb-3">
-          <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-accent text-sm font-bold">
-            {user?.email?.[0]?.toUpperCase() || 'U'}
+          {/* Avatar with status dot */}
+          <div className="relative flex-shrink-0">
+            <div
+              className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold"
+              style={{
+                background: 'linear-gradient(135deg, rgba(37,99,255,0.3), rgba(0,212,255,0.2))',
+                border: '1px solid rgba(37,99,255,0.3)',
+                color: '#00d4ff',
+              }}
+            >
+              {user?.email?.[0]?.toUpperCase() || 'U'}
+            </div>
+            {/* Online indicator */}
+            <span
+              className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full"
+              style={{ background: '#00e87a', border: '2px solid #05050f', boxShadow: '0 0 6px rgba(0,232,122,0.6)' }}
+            />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs text-white font-medium truncate">{user?.email || 'user@example.com'}</p>
@@ -116,7 +142,10 @@ export function Sidebar() {
         </div>
         <button
           onClick={handleSignOut}
-          className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
+          className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm text-gray-500 hover:text-red-400 transition-all duration-200"
+          style={{ ':hover': { background: 'rgba(239,68,68,0.08)' } }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.08)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
             <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />

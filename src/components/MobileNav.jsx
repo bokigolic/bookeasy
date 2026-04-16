@@ -60,19 +60,44 @@ const items = [
 
 export function MobileNav() {
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface border-t border-border flex items-center justify-around px-2 py-2 safe-area-bottom">
+    <nav
+      className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2 py-2 animate-slide-up"
+      style={{
+        background: 'rgba(5,5,15,0.85)',
+        backdropFilter: 'blur(24px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+        borderTop: '1px solid rgba(26,26,58,0.7)',
+      }}
+    >
       {items.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}
-          className={({ isActive }) =>
-            `flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all ${
-              isActive ? 'text-accent' : 'text-gray-500'
-            }`
-          }
+          className="flex flex-col items-center gap-0.5 px-3 py-1.5 relative transition-all duration-200"
         >
-          {item.icon}
-          <span className="text-[10px] font-medium">{item.label}</span>
+          {({ isActive }) => (
+            <>
+              <span style={{ color: isActive ? '#00d4ff' : 'rgba(255,255,255,0.3)' }}>
+                {item.icon}
+              </span>
+              <span
+                className="text-[10px] font-medium"
+                style={{ color: isActive ? '#00d4ff' : 'rgba(255,255,255,0.3)' }}
+              >
+                {item.label}
+              </span>
+              {/* Glow dot indicator */}
+              {isActive && (
+                <span
+                  className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full"
+                  style={{
+                    background: '#00d4ff',
+                    boxShadow: '0 0 6px rgba(0,212,255,0.8), 0 0 12px rgba(0,212,255,0.4)',
+                  }}
+                />
+              )}
+            </>
+          )}
         </NavLink>
       ))}
     </nav>
