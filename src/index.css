@@ -241,6 +241,12 @@
   .stat-cyan   { border-top: 2px solid #00d4ff; }
   .stat-green  { border-top: 2px solid #00e87a; }
   .stat-purple { border-top: 2px solid #a855f7; }
+
+  /* ── Notification badge pulse ──────────────────────────────── */
+  .notif-badge { animation: notifPulse 2s ease-in-out infinite; }
+
+  /* ── Subtle divide ─────────────────────────────────────────── */
+  .divide-border > * + * { border-top: 1px solid rgba(26,26,58,0.6); }
 }
 
 /* ─── Keyframes ──────────────────────────────────────────────── */
@@ -344,4 +350,10 @@
 @keyframes countIn {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Notification badge pulse */
+@keyframes notifPulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.15); }
 }

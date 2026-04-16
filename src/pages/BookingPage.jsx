@@ -3,23 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { format, startOfDay, isBefore, eachDayOfInterval, startOfWeek, endOfWeek } from 'date-fns'
 import { supabase } from '../lib/supabaseClient'
 import { Spinner } from '../components/ui/Spinner'
-
-/* ─── Slot generator (logic unchanged) ──────────────────────── */
-function generateSlots(openTime, closeTime, durationMin, bookedTimes) {
-  const slots = []
-  const [oh, om] = openTime.split(':').map(Number)
-  const [ch, cm] = closeTime.split(':').map(Number)
-  let current = oh * 60 + om
-  const end = ch * 60 + cm
-  while (current + durationMin <= end) {
-    const h = String(Math.floor(current / 60)).padStart(2, '0')
-    const m = String(current % 60).padStart(2, '0')
-    const timeStr = `${h}:${m}`
-    if (!bookedTimes.includes(timeStr)) slots.push(timeStr)
-    current += durationMin
-  }
-  return slots
-}
+import { generateSlots } from '../lib/slots'
 
 const STEPS = { SERVICE: 0, DATE: 1, TIME: 2, FORM: 3, CONFIRM: 4 }
 
@@ -194,7 +178,7 @@ export default function BookingPage() {
         .eq('date', format(selectedDate, 'yyyy-MM-dd'))
         .neq('status', 'cancelled')
       const bookedTimes = (booked || []).map(b => b.time?.slice(0, 5))
-      const available = generateSlots(hours.open, hours.close, selectedService.duration, bookedTimes)
+      const available = generateSlots(hours.open, hours.close, selectedService.duration, bookedTimes, business.availability || {})
       setSlots(available)
       setSlotsLoading(false)
     }
@@ -234,6 +218,8 @@ export default function BookingPage() {
 
   const isDayAvailable = (day) => {
     if (isBefore(startOfDay(day), startOfDay(new Date()))) return false
+    const daysOff = business?.availability?.days_off || []
+    if (daysOff.includes(format(day, 'yyyy-MM-dd'))) return false
     const key = format(day, 'EEE').toLowerCase()
     return business?.working_hours?.[key]?.enabled
   }
