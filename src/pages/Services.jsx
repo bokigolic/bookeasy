@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { DashboardLayout } from '../components/DashboardLayout'
-import { Spinner } from '../components/ui/Spinner'
+import { SkeletonCard, Skeleton } from '../components/ui/Skeleton'
 
 const EMPTY_FORM = { name: '', duration: '', price: '', description: '' }
 
@@ -31,7 +31,7 @@ export default function Services() {
     load()
   }, [user])
 
-  const openAdd = () => { setEditing(null); setForm(EMPTY_FORM); setShowForm(true) }
+  const openAdd  = () => { setEditing(null); setForm(EMPTY_FORM); setShowForm(true) }
   const openEdit = (s) => { setEditing(s); setForm({ name: s.name, duration: s.duration, price: s.price, description: s.description || '' }); setShowForm(true) }
   const closeForm = () => { setShowForm(false); setEditing(null); setForm(EMPTY_FORM) }
 
@@ -59,7 +59,18 @@ export default function Services() {
     setDeleting(null)
   }
 
-  if (loading) return <DashboardLayout><div className="flex items-center justify-center h-64"><Spinner /></div></DashboardLayout>
+  /* ── Skeleton loading ──────────────────────────────────────── */
+  if (loading) return (
+    <DashboardLayout>
+      <div className="flex items-center justify-between mb-6">
+        <Skeleton className="h-8 w-28" />
+        <Skeleton className="h-10 w-32" rounded="rounded-xl" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+      </div>
+    </DashboardLayout>
+  )
 
   return (
     <DashboardLayout>
@@ -70,8 +81,14 @@ export default function Services() {
 
       {/* Form modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md card">
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+        >
+          <div
+            className="w-full max-w-md card no-hover step-enter"
+            style={{ boxShadow: '0 0 60px rgba(37,99,255,0.15), 0 32px 64px rgba(0,0,0,0.6)' }}
+          >
             <h2 className="font-heading font-bold text-lg text-white mb-4">
               {editing ? 'Edit service' : 'New service'}
             </h2>
@@ -106,9 +123,9 @@ export default function Services() {
       )}
 
       {services.length === 0 ? (
-        <div className="card text-center py-16">
-          <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-3">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+        <div className="card no-hover text-center py-16">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: 'rgba(37,99,255,0.1)' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" style={{ color: '#2563ff' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
               <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
             </svg>
           </div>
@@ -117,8 +134,12 @@ export default function Services() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {services.map(s => (
-            <div key={s.id} className="card group hover:border-accent/20 transition-colors">
+          {services.map((s, idx) => (
+            <div
+              key={s.id}
+              className="card group list-item-enter"
+              style={{ animationDelay: `${idx * 60}ms` }}
+            >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 min-w-0">
                   <h3 className="font-heading font-semibold text-white text-base truncate">{s.name}</h3>
@@ -132,11 +153,23 @@ export default function Services() {
                   </svg>
                   {s.duration} min
                 </span>
-                <span className="text-accent font-semibold">€{s.price}</span>
+                <span className="font-semibold" style={{ color: '#2563ff' }}>€{s.price}</span>
               </div>
-              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => openEdit(s)} className="flex-1 text-xs py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 transition-all">Edit</button>
-                <button onClick={() => handleDelete(s.id)} disabled={deleting === s.id} className="flex-1 text-xs py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all">
+              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <button
+                  onClick={() => openEdit(s)}
+                  className="flex-1 text-xs py-1.5 rounded-lg transition-all active:scale-95"
+                  style={{ background: 'rgba(255,255,255,0.05)' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(s.id)}
+                  disabled={deleting === s.id}
+                  className="flex-1 text-xs py-1.5 rounded-lg btn-danger active:scale-95"
+                >
                   {deleting === s.id ? '…' : 'Delete'}
                 </button>
               </div>

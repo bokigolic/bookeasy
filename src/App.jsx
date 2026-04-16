@@ -1,5 +1,6 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { ToastProvider } from './context/ToastContext'
 import { Spinner } from './components/ui/Spinner'
 
 import Landing from './pages/Landing'
@@ -28,38 +29,41 @@ function ProtectedRoute({ children, role }) {
 }
 
 function AppRoutes() {
+  const location = useLocation()
   return (
-    <Routes>
-      <Route path="/" element={<Landing />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/book/:slug" element={<BookingPage />} />
+    <div key={location.key} className="page-enter">
+      <Routes location={location}>
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/book/:slug" element={<BookingPage />} />
 
-      {/* Business routes */}
-      <Route path="/dashboard" element={
-        <ProtectedRoute role="business"><Dashboard /></ProtectedRoute>
-      } />
-      <Route path="/appointments" element={
-        <ProtectedRoute role="business"><Appointments /></ProtectedRoute>
-      } />
-      <Route path="/services" element={
-        <ProtectedRoute role="business"><Services /></ProtectedRoute>
-      } />
-      <Route path="/clients" element={
-        <ProtectedRoute role="business"><Clients /></ProtectedRoute>
-      } />
-      <Route path="/settings" element={
-        <ProtectedRoute role="business"><Settings /></ProtectedRoute>
-      } />
+        {/* Business routes */}
+        <Route path="/dashboard" element={
+          <ProtectedRoute role="business"><Dashboard /></ProtectedRoute>
+        } />
+        <Route path="/appointments" element={
+          <ProtectedRoute role="business"><Appointments /></ProtectedRoute>
+        } />
+        <Route path="/services" element={
+          <ProtectedRoute role="business"><Services /></ProtectedRoute>
+        } />
+        <Route path="/clients" element={
+          <ProtectedRoute role="business"><Clients /></ProtectedRoute>
+        } />
+        <Route path="/settings" element={
+          <ProtectedRoute role="business"><Settings /></ProtectedRoute>
+        } />
 
-      {/* Client routes */}
-      <Route path="/my-bookings" element={
-        <ProtectedRoute role="client"><MyBookings /></ProtectedRoute>
-      } />
+        {/* Client routes */}
+        <Route path="/my-bookings" element={
+          <ProtectedRoute role="client"><MyBookings /></ProtectedRoute>
+        } />
 
-      {/* Fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </div>
   )
 }
 
@@ -67,7 +71,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        <ToastProvider>
+          <AppRoutes />
+        </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   )

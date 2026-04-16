@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { format, addDays, startOfDay, isBefore, eachDayOfInterval, startOfWeek, endOfWeek } from 'date-fns'
+import { format, startOfDay, isBefore, eachDayOfInterval, startOfWeek, endOfWeek } from 'date-fns'
 import { supabase } from '../lib/supabaseClient'
 import { Spinner } from '../components/ui/Spinner'
 
+/* ─── Slot generator (logic unchanged) ──────────────────────── */
 function generateSlots(openTime, closeTime, durationMin, bookedTimes) {
   const slots = []
   const [oh, om] = openTime.split(':').map(Number)
@@ -22,6 +23,132 @@ function generateSlots(openTime, closeTime, durationMin, bookedTimes) {
 
 const STEPS = { SERVICE: 0, DATE: 1, TIME: 2, FORM: 3, CONFIRM: 4 }
 
+/* ─── Confetti burst (CSS only) ─────────────────────────────── */
+const CONFETTI_COLORS = ['#2563ff', '#00d4ff', '#00e87a', '#a855f7', '#f59e0b', '#ffffff', '#ec4899']
+
+function Confetti() {
+  const pieces = useMemo(() =>
+    Array.from({ length: 40 }, (_, i) => ({
+      id: i,
+      left:     Math.random() * 100,
+      delay:    Math.random() * 0.9,
+      duration: 1.4 + Math.random() * 1.2,
+      width:    5 + Math.random() * 8,
+      height:   3 + Math.random() * 4,
+      color:    CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+      rStart:   Math.random() * 180 - 90,
+      rEnd:     360 + Math.random() * 360,
+    })),
+  [])
+
+  return (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-50" aria-hidden>
+      {pieces.map(p => (
+        <div
+          key={p.id}
+          className="confetti-piece"
+          style={{
+            left: `${p.left}%`,
+            width: p.width,
+            height: p.height,
+            background: p.color,
+            '--r-start': `${p.rStart}deg`,
+            '--r-end': `${p.rEnd}deg`,
+            animationDuration: `${p.duration}s`,
+            animationDelay: `${p.delay}s`,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
+/* ─── Animated checkmark SVG ─────────────────────────────────── */
+function AnimatedCheck() {
+  return (
+    <svg
+      viewBox="0 0 52 52"
+      width="72"
+      height="72"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <defs>
+        <linearGradient id="check-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#00e87a" />
+          <stop offset="100%" stopColor="#00d4ff" />
+        </linearGradient>
+      </defs>
+      <circle
+        className="check-circle"
+        cx="26" cy="26" r="24"
+        stroke="url(#check-grad)"
+        strokeWidth="2"
+      />
+      <path
+        className="check-mark"
+        d="M14 27l8 8 16-16"
+        stroke="url(#check-grad)"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+/* ─── Step progress indicator ────────────────────────────────── */
+function StepIndicator({ step }) {
+  const labels = ['Service', 'Date', 'Time', 'Details']
+  return (
+    <div className="flex items-center mb-8">
+      {labels.map((label, i) => (
+        <div key={label} className="flex items-center flex-1 last:flex-none">
+          {/* Circle */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <div
+              className="w-7 h-7 rounded-full text-xs flex items-center justify-center font-semibold transition-all duration-400"
+              style={
+                step > i
+                  ? { background: 'linear-gradient(135deg,#2563ff,#00d4ff)', color: '#fff', boxShadow: '0 0 10px rgba(37,99,255,0.5)' }
+                  : step === i
+                  ? { background: 'rgba(37,99,255,0.15)', color: '#2563ff', border: '1.5px solid rgba(37,99,255,0.45)' }
+                  : { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.25)' }
+              }
+            >
+              {step > i ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              ) : i + 1}
+            </div>
+            <span
+              className="text-xs font-medium hidden sm:block transition-colors duration-300"
+              style={{ color: step >= i ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.25)' }}
+            >
+              {label}
+            </span>
+          </div>
+
+          {/* Progress line */}
+          {i < labels.length - 1 && (
+            <div className="flex-1 h-px mx-3 relative overflow-hidden" style={{ background: 'rgba(26,26,58,0.9)' }}>
+              <div
+                className="absolute inset-y-0 left-0 transition-all duration-500 ease-out"
+                style={{
+                  width: step > i ? '100%' : '0%',
+                  background: 'linear-gradient(90deg,#2563ff,#00d4ff)',
+                }}
+              />
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ─── BookingPage ─────────────────────────────────────────────── */
 export default function BookingPage() {
   const { slug } = useParams()
   const [business, setBusiness] = useState(null)
@@ -89,7 +216,6 @@ export default function BookingPage() {
     }).select().single()
 
     if (!error && data) {
-      // Upsert client record
       const { data: existing } = await supabase.from('clients').select('*').eq('business_id', business.id).eq('email', form.email).single()
       if (existing) {
         await supabase.from('clients').update({ total_visits: existing.total_visits + 1 }).eq('id', existing.id)
@@ -103,8 +229,8 @@ export default function BookingPage() {
   }
 
   const calStart = startOfWeek(new Date(calMonth.getFullYear(), calMonth.getMonth(), 1), { weekStartsOn: 1 })
-  const calEnd = endOfWeek(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0), { weekStartsOn: 1 })
-  const calDays = eachDayOfInterval({ start: calStart, end: calEnd })
+  const calEnd   = endOfWeek(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0), { weekStartsOn: 1 })
+  const calDays  = eachDayOfInterval({ start: calStart, end: calEnd })
 
   const isDayAvailable = (day) => {
     if (isBefore(startOfDay(day), startOfDay(new Date()))) return false
@@ -112,15 +238,17 @@ export default function BookingPage() {
     return business?.working_hours?.[key]?.enabled
   }
 
+  /* Loading */
   if (loading) return (
     <div className="min-h-screen bg-bg flex items-center justify-center">
       <Spinner size="lg" />
     </div>
   )
 
+  /* Not found */
   if (notFound) return (
     <div className="min-h-screen bg-bg flex items-center justify-center px-4">
-      <div className="text-center">
+      <div className="text-center step-enter">
         <h1 className="font-heading text-3xl font-bold text-white mb-2">Business not found</h1>
         <p className="text-muted mb-6">The booking page you&apos;re looking for doesn&apos;t exist.</p>
         <Link to="/" className="btn-primary">Go home</Link>
@@ -128,46 +256,61 @@ export default function BookingPage() {
     </div>
   )
 
+  /* ── Confirmation screen ───────────────────────────────────── */
   if (step === STEPS.CONFIRM) return (
     <div className="min-h-screen bg-bg flex items-center justify-center px-4">
-      <div className="max-w-md w-full card text-center">
-        <div className="w-16 h-16 rounded-full bg-green-500/15 flex items-center justify-center mx-auto mb-4">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><polyline points="20 6 9 17 4 12" /></svg>
+      <Confetti />
+      <div className="max-w-md w-full card no-hover text-center step-enter" style={{ boxShadow: '0 0 60px rgba(0,232,122,0.08), 0 32px 64px rgba(0,0,0,0.5)' }}>
+        {/* Animated checkmark */}
+        <div className="flex justify-center mb-5">
+          <div
+            className="w-20 h-20 rounded-full flex items-center justify-center"
+            style={{ background: 'rgba(0,232,122,0.08)', border: '1px solid rgba(0,232,122,0.2)' }}
+          >
+            <AnimatedCheck />
+          </div>
         </div>
+
         <h2 className="font-heading text-2xl font-bold text-white mb-2">Booking confirmed!</h2>
-        <p className="text-muted mb-4">
-          Your appointment at <span className="text-white">{business.name}</span> is confirmed.
+        <p className="text-muted mb-5">
+          Your appointment at <span className="text-white font-medium">{business.name}</span> is confirmed.
         </p>
-        <div className="bg-bg border border-border rounded-xl p-4 text-left space-y-2 mb-6">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted">Service</span>
-            <span className="text-white">{selectedService?.name}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted">Date</span>
-            <span className="text-white">{format(selectedDate, 'EEEE, MMMM d')}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted">Time</span>
-            <span className="text-white">{selectedTime}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted">Location</span>
-            <span className="text-white">{business.address || 'Contact business'}</span>
-          </div>
+
+        <div
+          className="rounded-xl p-4 text-left space-y-2.5 mb-6"
+          style={{ background: 'rgba(5,5,15,0.7)', border: '1px solid rgba(26,26,58,0.9)' }}
+        >
+          {[
+            { label: 'Service',  value: selectedService?.name },
+            { label: 'Date',     value: format(selectedDate, 'EEEE, MMMM d') },
+            { label: 'Time',     value: selectedTime },
+            { label: 'Location', value: business.address || 'Contact business' },
+          ].map(row => (
+            <div key={row.label} className="flex justify-between text-sm">
+              <span className="text-muted">{row.label}</span>
+              <span className="text-white font-medium">{row.value}</span>
+            </div>
+          ))}
         </div>
-        <p className="text-sm text-muted mb-4">A confirmation has been sent to <span className="text-white">{form.email}</span></p>
+
+        <p className="text-sm text-muted mb-5">
+          A confirmation has been sent to <span className="text-white">{form.email}</span>
+        </p>
         <Link to="/" className="btn-secondary block text-center">Back to home</Link>
       </div>
     </div>
   )
 
+  /* ── Main booking flow ─────────────────────────────────────── */
   return (
     <div className="min-h-screen bg-bg px-4 py-8">
       <div className="max-w-2xl mx-auto">
         {/* Business header */}
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center text-accent font-heading font-bold text-lg">
+          <div
+            className="w-12 h-12 rounded-xl flex items-center justify-center font-heading font-bold text-lg flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg,rgba(37,99,255,0.3),rgba(0,212,255,0.2))', color: '#00d4ff' }}
+          >
             {business.name?.[0]?.toUpperCase()}
           </div>
           <div>
@@ -176,31 +319,22 @@ export default function BookingPage() {
           </div>
         </div>
 
-        {/* Step indicator */}
-        <div className="flex items-center gap-2 mb-8">
-          {['Service', 'Date', 'Time', 'Details'].map((s, i) => (
-            <div key={s} className="flex items-center gap-2">
-              <div className={`flex items-center gap-1.5 text-sm ${step >= i ? 'text-accent' : 'text-muted'}`}>
-                <span className={`w-6 h-6 rounded-full text-xs flex items-center justify-center ${step > i ? 'bg-accent text-white' : step === i ? 'bg-accent/20 text-accent border border-accent/40' : 'bg-white/5'}`}>
-                  {step > i ? '✓' : i + 1}
-                </span>
-                <span className="hidden sm:block">{s}</span>
-              </div>
-              {i < 3 && <div className={`flex-1 h-px w-6 ${step > i ? 'bg-accent/40' : 'bg-border'}`} />}
-            </div>
-          ))}
-        </div>
+        {/* Animated step indicator */}
+        <StepIndicator step={step} />
 
-        {/* Step 1: Service */}
+        {/* ── Step 1: Service ─────────────────────────────── */}
         {step === STEPS.SERVICE && (
-          <div>
+          <div key="service" className="step-enter">
             <h2 className="font-heading font-semibold text-white text-lg mb-4">Select a service</h2>
             <div className="space-y-3">
-              {services.map(s => (
+              {services.map((s, i) => (
                 <button
                   key={s.id}
                   onClick={() => { setSelectedService(s); setStep(STEPS.DATE) }}
-                  className="w-full card hover:border-accent/40 text-left transition-all group"
+                  className="w-full card text-left group list-item-enter"
+                  style={{ animationDelay: `${i * 60}ms` }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(37,99,255,0.3)')}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = '')}
                 >
                   <div className="flex items-center justify-between">
                     <div>
@@ -208,7 +342,7 @@ export default function BookingPage() {
                       {s.description && <p className="text-sm text-muted mt-0.5">{s.description}</p>}
                       <p className="text-xs text-muted mt-1">{s.duration} min</p>
                     </div>
-                    <span className="text-accent font-heading font-bold text-lg ml-4">€{s.price}</span>
+                    <span className="font-heading font-bold text-lg ml-4" style={{ color: '#2563ff' }}>€{s.price}</span>
                   </div>
                 </button>
               ))}
@@ -216,31 +350,41 @@ export default function BookingPage() {
           </div>
         )}
 
-        {/* Step 2: Date */}
+        {/* ── Step 2: Date ─────────────────────────────────── */}
         {step === STEPS.DATE && (
-          <div>
+          <div key="date" className="step-enter">
             <div className="flex items-center gap-2 mb-4">
-              <button onClick={() => setStep(STEPS.SERVICE)} className="text-muted hover:text-white transition-colors">
+              <button onClick={() => setStep(STEPS.SERVICE)} className="text-muted hover:text-white transition-colors p-1 rounded-lg hover:bg-white/5">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="15 18 9 12 15 6" /></svg>
               </button>
               <h2 className="font-heading font-semibold text-white text-lg">Pick a date</h2>
             </div>
-            <div className="card">
+            <div className="card no-hover">
               <div className="flex items-center justify-between mb-4">
-                <button onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1))} className="p-1.5 hover:bg-white/10 rounded-lg text-muted hover:text-white transition-colors">
+                <button
+                  onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1))}
+                  className="p-1.5 rounded-lg transition-colors text-muted hover:text-white"
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="15 18 9 12 15 6" /></svg>
                 </button>
                 <h3 className="font-heading font-semibold text-white">{format(calMonth, 'MMMM yyyy')}</h3>
-                <button onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1))} className="p-1.5 hover:bg-white/10 rounded-lg text-muted hover:text-white transition-colors">
+                <button
+                  onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1))}
+                  className="p-1.5 rounded-lg transition-colors text-muted hover:text-white"
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="9 18 15 12 9 6" /></svg>
                 </button>
               </div>
               <div className="grid grid-cols-7 gap-0.5 mb-1">
-                {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => (
+                {['Mo','Tu','We','Th','Fr','Sa','Su'].map(d => (
                   <div key={d} className="text-center text-xs text-muted py-1">{d}</div>
                 ))}
               </div>
-              <div className="grid grid-cols-7 gap-0.5">
+              <div className="grid grid-cols-7 gap-1">
                 {calDays.map(day => {
                   const available = isDayAvailable(day)
                   const isSelected = selectedDate && format(day, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd')
@@ -250,12 +394,16 @@ export default function BookingPage() {
                       key={format(day, 'yyyy-MM-dd')}
                       disabled={!available}
                       onClick={() => { setSelectedDate(day); setStep(STEPS.TIME) }}
-                      className={`h-10 rounded-xl text-sm transition-all ${
-                        isSelected ? 'bg-accent text-white font-semibold'
-                        : available && isCurrentMonth ? 'hover:bg-accent/20 text-white'
-                        : !isCurrentMonth ? 'text-gray-700 cursor-default'
-                        : 'text-gray-600 cursor-not-allowed'
-                      }`}
+                      className="cal-day h-10 rounded-xl text-sm"
+                      style={{
+                        background: isSelected ? 'linear-gradient(135deg,#2563ff,#00d4ff)' : available && isCurrentMonth ? 'transparent' : 'transparent',
+                        color: isSelected ? '#fff' : available && isCurrentMonth ? 'rgba(255,255,255,0.85)' : !isCurrentMonth ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.2)',
+                        cursor: available ? 'pointer' : 'default',
+                        boxShadow: isSelected ? '0 0 14px rgba(37,99,255,0.5)' : 'none',
+                        fontWeight: isSelected ? 600 : 400,
+                      }}
+                      onMouseEnter={e => { if (available && !isSelected) e.currentTarget.style.background = 'rgba(37,99,255,0.18)' }}
+                      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
                     >
                       {format(day, 'd')}
                     </button>
@@ -266,11 +414,11 @@ export default function BookingPage() {
           </div>
         )}
 
-        {/* Step 3: Time */}
+        {/* ── Step 3: Time ─────────────────────────────────── */}
         {step === STEPS.TIME && (
-          <div>
+          <div key="time" className="step-enter">
             <div className="flex items-center gap-2 mb-4">
-              <button onClick={() => setStep(STEPS.DATE)} className="text-muted hover:text-white transition-colors">
+              <button onClick={() => setStep(STEPS.DATE)} className="text-muted hover:text-white transition-colors p-1 rounded-lg hover:bg-white/5">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="15 18 9 12 15 6" /></svg>
               </button>
               <h2 className="font-heading font-semibold text-white text-lg">
@@ -280,17 +428,33 @@ export default function BookingPage() {
             {slotsLoading ? (
               <div className="flex justify-center py-12"><Spinner /></div>
             ) : slots.length === 0 ? (
-              <div className="card text-center py-12">
+              <div className="card no-hover text-center py-12">
                 <p className="text-muted">No available slots for this day</p>
-                <button onClick={() => setStep(STEPS.DATE)} className="text-accent text-sm hover:underline mt-2">Pick another date</button>
+                <button onClick={() => setStep(STEPS.DATE)} className="mt-2 text-sm hover:underline" style={{ color: '#2563ff' }}>Pick another date</button>
               </div>
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {slots.map(slot => (
+                {slots.map((slot, i) => (
                   <button
                     key={slot}
                     onClick={() => { setSelectedTime(slot); setStep(STEPS.FORM) }}
-                    className="py-3 rounded-xl border border-border hover:border-accent bg-surface hover:bg-accent/10 text-sm font-medium text-white hover:text-accent transition-all"
+                    className="py-3 rounded-xl text-sm font-medium transition-all duration-150 active:scale-95 list-item-enter"
+                    style={{
+                      background: 'rgba(13,13,31,0.8)',
+                      border: '1px solid rgba(26,26,58,0.9)',
+                      color: 'rgba(255,255,255,0.8)',
+                      animationDelay: `${i * 30}ms`,
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = 'rgba(37,99,255,0.5)'
+                      e.currentTarget.style.background = 'rgba(37,99,255,0.1)'
+                      e.currentTarget.style.color = '#00d4ff'
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = 'rgba(26,26,58,0.9)'
+                      e.currentTarget.style.background = 'rgba(13,13,31,0.8)'
+                      e.currentTarget.style.color = 'rgba(255,255,255,0.8)'
+                    }}
                   >
                     {slot}
                   </button>
@@ -300,25 +464,38 @@ export default function BookingPage() {
           </div>
         )}
 
-        {/* Step 4: Form */}
+        {/* ── Step 4: Form ─────────────────────────────────── */}
         {step === STEPS.FORM && (
-          <div>
+          <div key="form" className="step-enter">
             <div className="flex items-center gap-2 mb-4">
-              <button onClick={() => setStep(STEPS.TIME)} className="text-muted hover:text-white transition-colors">
+              <button onClick={() => setStep(STEPS.TIME)} className="text-muted hover:text-white transition-colors p-1 rounded-lg hover:bg-white/5">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="15 18 9 12 15 6" /></svg>
               </button>
               <h2 className="font-heading font-semibold text-white text-lg">Your details</h2>
             </div>
 
             {/* Summary */}
-            <div className="bg-accent/10 border border-accent/20 rounded-xl p-4 mb-5 text-sm space-y-1">
-              <div className="flex justify-between"><span className="text-muted">Service</span><span className="text-white">{selectedService.name}</span></div>
-              <div className="flex justify-between"><span className="text-muted">Date</span><span className="text-white">{format(selectedDate, 'EEE, MMM d')}</span></div>
-              <div className="flex justify-between"><span className="text-muted">Time</span><span className="text-white">{selectedTime}</span></div>
-              <div className="flex justify-between"><span className="text-muted">Price</span><span className="text-accent font-semibold">€{selectedService.price}</span></div>
+            <div
+              className="rounded-xl p-4 mb-5 text-sm space-y-2"
+              style={{ background: 'rgba(37,99,255,0.08)', border: '1px solid rgba(37,99,255,0.2)' }}
+            >
+              {[
+                { label: 'Service', value: selectedService.name },
+                { label: 'Date',    value: format(selectedDate, 'EEE, MMM d') },
+                { label: 'Time',    value: selectedTime },
+              ].map(r => (
+                <div key={r.label} className="flex justify-between">
+                  <span className="text-muted">{r.label}</span>
+                  <span className="text-white">{r.value}</span>
+                </div>
+              ))}
+              <div className="flex justify-between">
+                <span className="text-muted">Price</span>
+                <span className="font-semibold" style={{ color: '#00e87a' }}>€{selectedService.price}</span>
+              </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="card space-y-4">
+            <form onSubmit={handleSubmit} className="card no-hover space-y-4">
               <div>
                 <label className="label">Full name</label>
                 <input className="input" placeholder="Jane Smith" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required />
@@ -332,7 +509,11 @@ export default function BookingPage() {
                 <input type="tel" className="input" placeholder="+1 555 000 0000" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
               </div>
               <button type="submit" disabled={submitting} className="btn-primary w-full mt-2">
-                {submitting ? 'Booking…' : 'Confirm booking'}
+                {submitting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Spinner size="sm" /> Booking…
+                  </span>
+                ) : 'Confirm booking'}
               </button>
               <p className="text-xs text-center text-muted">By booking you agree to the cancellation policy</p>
             </form>
