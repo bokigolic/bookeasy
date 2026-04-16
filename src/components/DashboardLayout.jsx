@@ -2,6 +2,8 @@ import { Sidebar } from './Sidebar'
 import { MobileNav } from './MobileNav'
 import { NotificationBell } from './NotificationBell'
 import { GlobalSearch } from './GlobalSearch'
+import { LangSwitcher } from './LangSwitcher'
+import { UpgradeBanner } from './UpgradeBanner'
 
 export function DashboardLayout({ children }) {
   return (
@@ -19,8 +21,11 @@ export function DashboardLayout({ children }) {
           }}
         >
           <GlobalSearch />
+          <LangSwitcher />
           <NotificationBell />
         </div>
+
+        <UpgradeBanner />
 
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-6">
           {children}

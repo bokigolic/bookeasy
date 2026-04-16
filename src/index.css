@@ -247,6 +247,25 @@
 
   /* ── Subtle divide ─────────────────────────────────────────── */
   .divide-border > * + * { border-top: 1px solid rgba(26,26,58,0.6); }
+
+  /* ── Onboarding / 404 page center ─────────────────────────── */
+  .onboarding-center {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  /* ── Install banner slide-up ───────────────────────────────── */
+  .install-banner {
+    animation: installSlideUp 0.45s cubic-bezier(0.16,1,0.3,1) both;
+  }
+}
+
+@keyframes installSlideUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ─── Keyframes ──────────────────────────────────────────────── */

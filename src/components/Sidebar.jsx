@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { LangSwitcher } from './LangSwitcher'
 
 const navItems = [
   {
@@ -87,6 +88,9 @@ export function Sidebar() {
 
       {/* User section */}
       <div className="mt-auto pt-4" style={{ borderTop: '1px solid rgba(26,26,58,0.8)' }}>
+        <div className="px-2 mb-3">
+          <LangSwitcher />
+        </div>
         <div className="flex items-center gap-3 px-2 mb-3">
           <div className="relative flex-shrink-0">
             <div

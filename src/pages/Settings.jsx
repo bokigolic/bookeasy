@@ -3,6 +3,7 @@ import { format } from 'date-fns'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
+import { usePlan } from '../context/PlanContext'
 import { DashboardLayout } from '../components/DashboardLayout'
 import { Spinner } from '../components/ui/Spinner'
 
@@ -44,6 +45,7 @@ const BUFFER_OPTIONS = [
 export default function Settings() {
   const { user } = useAuth()
   const { showToast } = useToast()
+  const { plan, isPro, monthlyBookings, serviceCount, FREE_BOOKING_LIMIT, FREE_SERVICE_LIMIT } = usePlan()
   const [business, setBusiness] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -290,6 +292,52 @@ export default function Settings() {
               </p>
             )}
           </div>
+        </div>
+
+        {/* Billing */}
+        <div className="card no-hover">
+          <h2 className="font-heading font-semibold text-white mb-1">Billing</h2>
+          <p className="text-muted text-xs mb-5">Manage your plan and usage</p>
+
+          <div className="flex items-center justify-between p-4 rounded-xl mb-4"
+            style={{ background: isPro ? 'rgba(37,99,255,0.08)' : 'rgba(255,255,255,0.03)', border: `1px solid ${isPro ? 'rgba(37,99,255,0.2)' : 'rgba(26,26,58,0.8)'}` }}>
+            <div>
+              <p className="font-semibold text-white">{isPro ? 'Pro plan' : 'Free plan'}</p>
+              <p className="text-muted text-xs mt-0.5">{isPro ? 'Unlimited bookings & services' : `${monthlyBookings}/${FREE_BOOKING_LIMIT} bookings · ${serviceCount}/${FREE_SERVICE_LIMIT} services`}</p>
+            </div>
+            {isPro ? (
+              <span className="text-xs px-3 py-1 rounded-full font-semibold"
+                style={{ background: 'rgba(37,99,255,0.15)', color: '#60a5fa', border: '1px solid rgba(37,99,255,0.25)' }}>
+                Pro
+              </span>
+            ) : (
+              <span className="text-xs px-3 py-1 rounded-full font-semibold"
+                style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                Free
+              </span>
+            )}
+          </div>
+
+          {!isPro && (
+            <div className="p-4 rounded-xl"
+              style={{ background: 'linear-gradient(135deg,rgba(37,99,255,0.08) 0%,rgba(0,212,255,0.05) 100%)', border: '1px solid rgba(37,99,255,0.2)' }}>
+              <p className="font-semibold text-white mb-1">Upgrade to Pro — €12/month</p>
+              <ul className="text-muted text-xs space-y-1 mb-4">
+                {['Unlimited bookings per month', 'Unlimited services', 'Priority support', 'Advanced analytics', 'Custom booking page branding'].map(f => (
+                  <li key={f} className="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 flex-shrink-0" style={{ color: '#00e87a' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <a href="https://buy.stripe.com/bookeasy-pro" target="_blank" rel="noopener noreferrer"
+                className="btn-primary inline-block text-sm py-2 px-4">
+                Upgrade to Pro →
+              </a>
+            </div>
+          )}
         </div>
 
         <button type="submit" disabled={saving} className="btn-primary w-full md:w-auto px-8">

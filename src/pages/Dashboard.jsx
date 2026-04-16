@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isToday } from 'date-fns'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
@@ -72,6 +72,7 @@ const statIcons = {
 /* ─── Dashboard ──────────────────────────────────────────────── */
 export default function Dashboard() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [business, setBusiness] = useState(null)
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
@@ -84,6 +85,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!user) return
+    // Redirect to onboarding if not completed
+    if (!localStorage.getItem(`be_onboarded_${user.id}`)) {
+      navigate('/onboarding', { replace: true })
+      return
+    }
     const load = async () => {
       const { data: biz } = await supabase.from('businesses').select('*').eq('user_id', user.id).single()
       setBusiness(biz)
@@ -94,7 +100,7 @@ export default function Dashboard() {
       setLoading(false)
     }
     load()
-  }, [user])
+  }, [user, navigate])
 
   const todayBookings = bookings.filter(b => b.date === format(today, 'yyyy-MM-dd'))
   const weekBookings = bookings.filter(b => {

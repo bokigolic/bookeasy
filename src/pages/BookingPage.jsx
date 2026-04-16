@@ -5,6 +5,126 @@ import { supabase } from '../lib/supabaseClient'
 import { Spinner } from '../components/ui/Spinner'
 import { generateSlots } from '../lib/slots'
 
+/* ─── Star rating ────────────────────────────────────────────── */
+function Stars({ rating, size = 14, interactive = false, onRate }) {
+  const [hover, setHover] = useState(0)
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1,2,3,4,5].map(i => (
+        <svg
+          key={i}
+          xmlns="http://www.w3.org/2000/svg"
+          width={size} height={size}
+          viewBox="0 0 24 24"
+          fill={(interactive ? hover || rating : rating) >= i ? '#f59e0b' : 'none'}
+          stroke="#f59e0b"
+          strokeWidth={1.8}
+          style={{ cursor: interactive ? 'pointer' : 'default', transition: 'fill 0.1s' }}
+          onMouseEnter={() => interactive && setHover(i)}
+          onMouseLeave={() => interactive && setHover(0)}
+          onClick={() => interactive && onRate && onRate(i)}
+        >
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+        </svg>
+      ))}
+    </div>
+  )
+}
+
+/* ─── Reviews section ────────────────────────────────────────── */
+function ReviewsSection({ businessId }) {
+  const [reviews, setReviews] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ name: '', rating: 5, comment: '' })
+  const [submitting, setSubmitting] = useState(false)
+
+  const load = async () => {
+    const { data } = await supabase.from('reviews')
+      .select('*')
+      .eq('business_id', businessId)
+      .order('created_at', { ascending: false })
+      .limit(10)
+    setReviews(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [businessId])
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!form.name || !form.rating) return
+    setSubmitting(true)
+    await supabase.from('reviews').insert({ business_id: businessId, reviewer_name: form.name, rating: form.rating, comment: form.comment })
+    setForm({ name: '', rating: 5, comment: '' })
+    setShowForm(false)
+    await load()
+    setSubmitting(false)
+  }
+
+  const avg = reviews.length > 0 ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1) : null
+
+  return (
+    <div className="mt-8 pt-6" style={{ borderTop: '1px solid rgba(26,26,58,0.8)' }}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <h3 className="font-heading font-semibold text-white">Reviews</h3>
+          {avg && (
+            <div className="flex items-center gap-1.5">
+              <Stars rating={Math.round(Number(avg))} size={13} />
+              <span className="text-sm font-semibold text-white">{avg}</span>
+              <span className="text-muted text-xs">({reviews.length})</span>
+            </div>
+          )}
+        </div>
+        <button onClick={() => setShowForm(v => !v)} className="text-xs font-medium px-3 py-1.5 rounded-xl transition-all"
+          style={{ background: showForm ? 'rgba(37,99,255,0.2)' : 'rgba(37,99,255,0.08)', color: '#60a5fa', border: '1px solid rgba(37,99,255,0.2)' }}>
+          {showForm ? 'Cancel' : '+ Leave a review'}
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleSubmit} className="card no-hover mb-4 space-y-3 step-enter">
+          <div>
+            <label className="label">Your name</label>
+            <input className="input" placeholder="Jane Smith" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required />
+          </div>
+          <div>
+            <label className="label">Rating</label>
+            <Stars rating={form.rating} size={20} interactive onRate={r => setForm(p => ({ ...p, rating: r }))} />
+          </div>
+          <div>
+            <label className="label">Comment (optional)</label>
+            <textarea className="input resize-none" rows={2} placeholder="Great experience…" value={form.comment} onChange={e => setForm(p => ({ ...p, comment: e.target.value }))} />
+          </div>
+          <button type="submit" disabled={submitting} className="btn-primary w-full">
+            {submitting ? 'Submitting…' : 'Submit review'}
+          </button>
+        </form>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center py-4"><Spinner /></div>
+      ) : reviews.length === 0 ? (
+        <p className="text-muted text-sm">No reviews yet. Be the first!</p>
+      ) : (
+        <div className="space-y-3">
+          {reviews.map(r => (
+            <div key={r.id} className="p-4 rounded-xl" style={{ background: 'rgba(5,5,15,0.6)', border: '1px solid rgba(26,26,58,0.7)' }}>
+              <div className="flex items-start justify-between gap-2 mb-1.5">
+                <p className="font-medium text-white text-sm">{r.reviewer_name}</p>
+                <Stars rating={r.rating} size={12} />
+              </div>
+              {r.comment && <p className="text-muted text-xs leading-relaxed">{r.comment}</p>}
+              <p className="text-muted text-[10px] mt-1.5">{format(new Date(r.created_at), 'MMM d, yyyy')}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const STEPS = { SERVICE: 0, DATE: 1, TIME: 2, FORM: 3, CONFIRM: 4 }
 
 /* ─── Confetti burst (CSS only) ─────────────────────────────── */
@@ -157,11 +277,16 @@ export default function BookingPage() {
       const { data: biz, error } = await supabase.from('businesses').select('*').eq('slug', slug).single()
       if (error || !biz) { setNotFound(true); setLoading(false); return }
       setBusiness(biz)
+      // Dynamic SEO
+      document.title = `Book at ${biz.name} — BookEasy`
+      const desc = document.querySelector('meta[name="description"]')
+      if (desc) desc.setAttribute('content', `Book appointments at ${biz.name}. ${biz.address || ''}`)
       const { data: svcs } = await supabase.from('services').select('*').eq('business_id', biz.id).order('price')
       setServices(svcs || [])
       setLoading(false)
     }
     load()
+    return () => { document.title = 'BookEasy — Accept Bookings 24/7' }
   }, [slug])
 
   useEffect(() => {
@@ -292,17 +417,38 @@ export default function BookingPage() {
     <div className="min-h-screen bg-bg px-4 py-8">
       <div className="max-w-2xl mx-auto">
         {/* Business header */}
-        <div className="flex items-center gap-3 mb-8">
-          <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center font-heading font-bold text-lg flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg,rgba(37,99,255,0.3),rgba(0,212,255,0.2))', color: '#00d4ff' }}
+        <div className="flex items-start justify-between gap-3 mb-8">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center font-heading font-bold text-lg flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg,rgba(37,99,255,0.3),rgba(0,212,255,0.2))', color: '#00d4ff' }}
+            >
+              {business.name?.[0]?.toUpperCase()}
+            </div>
+            <div>
+              <h1 className="font-heading font-bold text-xl text-white">{business.name}</h1>
+              {business.address && <p className="text-muted text-sm">{business.address}</p>}
+              {business.phone && <p className="text-muted text-xs">{business.phone}</p>}
+            </div>
+          </div>
+          <button
+            onClick={async () => {
+              const url = window.location.href
+              if (navigator.share) {
+                await navigator.share({ title: `Book at ${business.name}`, url })
+              } else {
+                await navigator.clipboard.writeText(url)
+              }
+            }}
+            className="flex-shrink-0 p-2 rounded-xl text-muted hover:text-white transition-all"
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(26,26,58,0.9)' }}
+            title="Share booking page"
           >
-            {business.name?.[0]?.toUpperCase()}
-          </div>
-          <div>
-            <h1 className="font-heading font-bold text-xl text-white">{business.name}</h1>
-            {business.address && <p className="text-muted text-sm">{business.address}</p>}
-          </div>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+            </svg>
+          </button>
         </div>
 
         {/* Animated step indicator */}
@@ -333,6 +479,7 @@ export default function BookingPage() {
                 </button>
               ))}
             </div>
+            <ReviewsSection businessId={business.id} />
           </div>
         )}
 
